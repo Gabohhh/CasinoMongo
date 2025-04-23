@@ -100,14 +100,6 @@ def dashboard():
     else:
         return render_template('dashboard.html', user=user_data, is_admin=False)
 
-@app.route('/accounts')
-def accounts():
-    """Lista todas las cuentas (solo para administradores)."""
-    if 'user' not in session or session['user']['role'] != 'admin':
-        return redirect(url_for('dashboard'))
-    
-    all_users = list(users_collection.find({}))
-    return render_template('accounts.html', users=all_users)
 
 @app.route('/create-account', methods=['GET', 'POST'])
 def create_account():
@@ -170,9 +162,143 @@ def logout():
     session.pop('user', None)
     return redirect(url_for('login'))
 
+
+@app.route('/edit-account/<user_id>', methods=['GET', 'POST'])
+def edit_account(user_id):
+    """Permite editar la información de una cuenta existente."""
+    if 'user' not in session or session['user']['role'] != 'admin':
+        return redirect(url_for('dashboard'))
+    
+    user = users_collection.find_one({"_id": ObjectId(user_id)})
+    
+    if request.method == 'POST':
+        # Recopilamos los datos del formulario
+        email = request.form.get('email')
+        phone = request.form.get('phone')
+        role = request.form.get('role')
+        active = 'active' in request.form  # Checkbox
+        
+        # Validación básica
+        if users_collection.find_one({"email": email, "_id": {"$ne": ObjectId(user_id)}}):
+            flash('El correo electrónico ya está registrado en otra cuenta', 'danger')
+            return redirect(url_for('edit_account', user_id=user_id))
+        
+        # Preparar los datos a actualizar
+        update_data = {
+            "email": email,
+            "phone": phone,
+            "role": role,
+            "active": active
+        }
+        
+        # Si se proporciona una nueva contraseña, la actualizamos
+        new_password = request.form.get('password')
+        if new_password and len(new_password) >= 8:
+            update_data["password"] = hash_password(new_password)
+        
+        # Actualizar usuario
+        users_collection.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$set": update_data}
+        )
+        
+        flash('Cuenta actualizada exitosamente', 'success')
+        return redirect(url_for('accounts'))
+    
+    return render_template('edit_account.html', user=user)
+
+@app.route('/toggle-account/<user_id>')
+def toggle_account(user_id):
+    """Activa o desactiva una cuenta de usuario."""
+    if 'user' not in session or session['user']['role'] != 'admin':
+        return redirect(url_for('dashboard'))
+    
+    # No permitir desactivar la propia cuenta del administrador
+    if user_id == session['user']['id']:
+        flash('No puedes desactivar tu propia cuenta', 'danger')
+        return redirect(url_for('accounts'))
+    
+    user = users_collection.find_one({"_id": ObjectId(user_id)})
+    new_status = not user['active']
+    
+    users_collection.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"active": new_status}}
+    )
+    
+    status_msg = "activada" if new_status else "desactivada"
+    flash(f'Cuenta {status_msg} exitosamente', 'success')
+    return redirect(url_for('accounts'))
+
+@app.route('/delete-account/<user_id>', methods=['POST'])
+def delete_account(user_id):
+    """Elimina permanentemente una cuenta de usuario."""
+    if 'user' not in session or session['user']['role'] != 'admin':
+        return redirect(url_for('dashboard'))
+    
+    # No permitir eliminar la propia cuenta del administrador
+    if user_id == session['user']['id']:
+        flash('No puedes eliminar tu propia cuenta', 'danger')
+        return redirect(url_for('accounts'))
+    
+    # Eliminar el usuario y sus transacciones asociadas
+    users_collection.delete_one({"_id": ObjectId(user_id)})
+    transactions_collection.delete_many({
+        "$or": [
+            {"from_user": user_id},
+            {"to_user": user_id}
+        ]
+    })
+    
+    flash('Cuenta eliminada permanentemente', 'success')
+    return redirect(url_for('accounts'))
+
+
+@app.route('/accounts')
+def accounts():
+    """List accounts with search and filters"""
+    if 'user' not in session or session['user']['role'] != 'admin':
+        return redirect(url_for('dashboard'))
+    
+    # Pagination
+    page = int(request.args.get('page', 1))
+    per_page = 25
+    
+    # Get filter parameters
+    search_term = request.args.get('search', '').strip()
+    role_filter = request.args.get('role', '')
+    status_filter = request.args.get('status', '')
+    
+    # Build MongoDB query
+    query = {}
+    
+    if search_term:
+        query['$or'] = [
+            {'email': {'$regex': search_term, '$options': 'i'}},
+            {'phone': {'$regex': search_term, '$options': 'i'}}
+        ]
+    
+    if role_filter:
+        query['role'] = role_filter
+    
+    if status_filter:
+        query['active'] = (status_filter == 'active')
+    
+    # Get paginated results
+    users_cursor = users_collection.find(query).sort('created_at', -1)
+    total_users = users_collection.count_documents(query)
+    users = list(users_cursor.skip((page - 1) * per_page).limit(per_page))
+    
+    return render_template(
+        'accounts.html',
+        users=users,
+        page=page,
+        per_page=per_page,
+        total_users=total_users
+    )
+
 # =============================================
 # Inicio de la aplicación
 # =============================================
 if __name__ == '__main__':
     app.run(debug=True)
-    

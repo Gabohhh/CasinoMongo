@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Cuenta{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4><i class="fas fa-user-edit me-2"></i>Editar Cuenta</h4>
+            </div>
+            <div class="card-body">
+                <form id="editAccountForm" method="POST" action="{{ url_for('edit_account', user_id=user._id) }}" novalidate>
+                    <!-- Email -->
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Correo Electrónico</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                            <input 
+                                type="email" 
+                                class="form-control" 
+                                id="email" 
+                                name="email" 
+                                required
+                                pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
+                                value="{{ user.email }}"
+                            >
+                        </div>
+                        <div class="invalid-feedback">Por favor ingresa un correo válido</div>
+                    </div>
+
+                    <!-- Contraseña (opcional) -->
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Nueva Contraseña (dejar en blanco para mantener la actual)</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                            <input 
+                                type="password" 
+                                class="form-control" 
+                                id="password" 
+                                name="password" 
+                                minlength="8"
+                                pattern="^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$"
+                            >
+                            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <div class="form-text">Mínimo 8 caracteres con al menos 1 letra y 1 número</div>
+                    </div>
+
+                    <!-- Teléfono -->
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Teléfono</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                            <input 
+                                type="tel" 
+                                class="form-control" 
+                                id="phone" 
+                                name="phone" 
+                                required
+                                pattern="[0-9]{9,15}"
+                                value="{{ user.phone }}"
+                            >
+                        </div>
+                        <div class="invalid-feedback">Ingresa un número de teléfono válido (9-15 dígitos)</div>
+                    </div>
+
+                    <!-- Rol -->
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Tipo de Cuenta</label>
+                        <select class="form-select" id="role" name="role" required>
+                            <option value="normal" {% if user.role == 'normal' %}selected{% endif %}>Usuario Normal</option>
+                            <option value="vip" {% if user.role == 'vip' %}selected{% endif %}>Usuario VIP</option>
+                            <option value="trial" {% if user.role == 'trial' %}selected{% endif %}>Usuario de Prueba</option>
+                            <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Administrador</option>
+                        </select>
+                    </div>
+
+                    <!-- Estado de la cuenta -->
+                    <div class="mb-4 form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="active" name="active" {% if user.active %}checked{% endif %}>
+                        <label class="form-check-label" for="active">Cuenta Activa</label>
+                    </div>
+
+                    <!-- Botón de envío -->
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Guardar Cambios
+                        </button>
+                        <a href="{{ url_for('accounts') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Mostrar/ocultar contraseña
+document.getElementById('togglePassword').addEventListener('click', function() {
+    const passwordField = document.getElementById('password');
+    const icon = this.querySelector('i');
+    if (passwordField.type === 'password') {
+        passwordField.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+    } else {
+        passwordField.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+    }
+});
+
+// Validación del formulario
+document.getElementById('editAccountForm').addEventListener('submit', function(event) {
+    const form = this;
+    
+    // Validación general del formulario
+    if (!form.checkValidity()) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
+    form.classList.add('was-validated');
+}, false);
+</script>
+{% endblock %}
