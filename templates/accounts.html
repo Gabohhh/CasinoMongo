@@ -123,6 +123,12 @@
                                        title="{% if user.active %}Desactivar{% else %}Activar{% endif %}">
                                         <i class="fas fa-{% if user.active %}lock{% else %}unlock{% endif %}"></i>
                                     </a>
+                                    <form action="{{ url_for('delete_account', user_id=user._id) }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-danger" title="Eliminar"
+                                                onclick="return confirm('¿Estás seguro de que deseas eliminar permanentemente esta cuenta?')">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>
@@ -152,7 +158,7 @@
                     </li>
                     {% endif %}
                     
-                    {% for p in range(1, (total_users // per_page + 2)) %}
+                    {% for p in range(1, (total_users // per_page + 2) %}
                         {% if p >= page-2 and p <= page+2 %}
                         <li class="page-item {% if p == page %}active{% endif %}">
                             <a class="page-link" href="{{ url_for('accounts', page=p, **request.args) }}">{{ p }}</a>
